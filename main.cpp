@@ -5,16 +5,16 @@
 #include <fstream>
 
 uint8_t memory[4096] = {0};
-uint8_t V[16];
-uint16_t I{0};
-uint8_t delay{0};
-uint8_t sound{0};
-uint16_t PC{0};
-std::stack<uint16_t> stack;
-uint8_t* SP = nullptr;
+uint8_t V[16]; // registers v0 throught vF
+uint16_t I{0}; // memory addresses register
+uint8_t delay{0}; // delay register
+uint8_t sound{0}; // sound register
+uint16_t PC{0}; // program counter
+std::stack<uint16_t> stack; // stores the address that the PC will be set to when finishing a subroutine
+uint8_t* SP = nullptr; // stack pointer
 
-int decode_program() {
-	std::ifstream program("2-ibm-logo.ch8", std::ios::binary);
+int import_program() {
+	std::ifstream program("C:\\Chip-8 pragrams\\2-ibm-logo.ch8", std::ios::binary);
 	if(!program.is_open()) {
 		std::cerr << "could not open file!";
 		return -1;
@@ -27,13 +27,12 @@ int decode_program() {
 
 void chip_8_cycle() {
 
-
 }
 
 
 int main() {
 
-	if(decode_program() == -1) return -1;
+	if(import_program() == -1) return -1;
 
 	SDL_INIT_VIDEO;
 	SDL_Window* window = SDL_CreateWindow("chip-8", 640, 320, SDL_WINDOW_RESIZABLE);
