@@ -1,17 +1,31 @@
-#include <array>
+#include <iostream>
 #include <stack>
 #include <SDL3/SDL.h>
 #include <cmath>
+#include <fstream>
 
-void decode_program() {
+uint8_t memory[4096] = {0};
+uint8_t V[16];
+uint16_t I{0};
+uint8_t delay{0};
+uint8_t sound{0};
+uint16_t PC{0};
+std::stack<uint16_t> stack;
+uint8_t* SP = nullptr;
 
-
+int decode_program() {
+	std::ifstream program("2-ibm-logo.ch8", std::ios::binary);
+	if(!program.is_open()) {
+		std::cerr << "could not open file!";
+		return -1;
+	}
+	program.read(reinterpret_cast<char*>(memory + 0x200), 3584);
+	PC = 0x200;
+	return 0;
 }
 
 
 void chip_8_cycle() {
-
-
 
 
 }
@@ -19,16 +33,7 @@ void chip_8_cycle() {
 
 int main() {
 
-	std::array<uint8_t, 4096> memory = {0};
-	uint8_t V[16];
-	uint16_t I{0};
-	uint8_t delay{0};
-	uint8_t sound{0};
-	uint16_t PC{0};
-	std::stack<uint16_t> stack;
-	uint8_t* SP = nullptr;
-
-	decode_program();
+	if(decode_program() == -1) return -1;
 
 	SDL_INIT_VIDEO;
 	SDL_Window* window = SDL_CreateWindow("chip-8", 640, 320, SDL_WINDOW_RESIZABLE);
