@@ -136,7 +136,7 @@ void chip_8_cycle() {
 		case 0x0000:
 			switch(opcode & 0x00FF) {
 				case 0x00E0: // CLS
-					std::memset(screen_buffer, 0, std::size(screen_buffer));
+					std::memset(screen_buffer, 0, sizeof(screen_buffer));
 					break;
 				case 0x00EE: // RET
 					PC = stack.top();
@@ -153,7 +153,7 @@ void chip_8_cycle() {
 		case 0x2000: // CALL addr
 			stack.push(PC);
 			PC = opcode & 0x0FFF;
-			PC++;
+			PC += 2;
 			break;
 		case 0x3000: // SE Vx, byte
 			if(V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) PC += 4;
@@ -165,12 +165,12 @@ void chip_8_cycle() {
 			if(V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4]) PC += 4;
 			break;
 		case 0x6000: // LD Vx, byte
-			V[opcode & (0x0F00 >> 8)] = (opcode & 0x00FF);
+			V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF);
 			PC += 2;
 			break;
 		case 0x7000: // ADD Vx, byte
-			V[opcode & (0x0F00 >> 8)] += (opcode & 0x00FF);
-			PC++;
+			V[(opcode & 0x0F00) >> 8] += (opcode & 0x00FF);
+			PC += 2;
 			break;
 		case 0x8000:
 			switch(opcode & 0x000F) {
@@ -200,7 +200,7 @@ void chip_8_cycle() {
 					break;
 				case 0x0007: // SUBN Vx, Vy
 					V[0xF] = V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8];
-					V[(opcode & 0x00F0) >> 4] -= V[(opcode & 0x0F00) >> 8];
+					V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
 					break;
 				case 0x000E: // SHL Vx{, Vy}
 					V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x80;
@@ -223,7 +223,7 @@ void chip_8_cycle() {
 		case 0xD000: { // DRW Vx, Vy, nibble
 			int sprite_x{V[(opcode & 0x0F00) >> 8]};
 			int sprite_y{V[(opcode & 0x00F0) >> 4]};
-			for(int y = 0; y < 5; y++) {
+			for(int y = 0; y < (opcode & 0x000F); y++) {
 				for(int x = 0; x < 8; x++) {
 					int x_position{sprite_x + x};
 					int y_position{sprite_y + y};
@@ -235,7 +235,7 @@ void chip_8_cycle() {
 				}
 				I++;
 			}
-			PC++;
+			PC += 2;
 			break;
 		}
 		case 0xE000:
@@ -243,9 +243,13 @@ void chip_8_cycle() {
 				case 0x009E: // SKP Vx
 					if(V[(opcode & 0x0F00) >> 8] == key_pressed) PC += 2;
 					break;
-				case 0x00A1: // KNP Vx
+				case 0x00A1: // SKNP Vx
 					if(V[(opcode & 0x0F00) >> 8] != key_pressed) PC += 2;
 					break;
+			}
+			break;
+		case 0xF000:
+			switch(opcode & 0x00FF) {
 				case 0x0007: // LD Vx, DT
 					V[(opcode & 0x0F00) >> 8] = DT;
 					PC += 2;
