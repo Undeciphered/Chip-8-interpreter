@@ -6,15 +6,18 @@
 #include <cstdlib>
 #include <ctime> 
 
+std::string program_file = "C:\\Chip-8 pragrams\\Space Invaders [David Winter].ch8";
 uint8_t memory[4096] = {0};
 uint8_t V[16]; // registers v0 throught vF
 uint16_t I{0}; // memory addresses register
 uint8_t DT{0}; // delay timer register
 uint8_t ST{0}; // sound timer register
 uint16_t PC{0}; // program counter
-uint8_t key_pressed{0};
+bool key_pressed[16];
 std::stack<uint16_t> stack; // stores the address that the PC will be set to when finishing a subroutine
 bool screen_buffer[64][32] = {0}; // the screen state
+bool running{true};
+SDL_Event event;
 
 void load_font() {
 
@@ -118,7 +121,7 @@ void load_font() {
 int import_program() {
 
 	load_font();
-	std::ifstream program("C:\\Chip-8 pragrams\\test_opcode.ch8", std::ios::binary);
+	std::ifstream program(program_file, std::ios::binary);
 	if(!program.is_open()) {
 		std::cerr << "could not open file!";
 		return -1;
@@ -128,6 +131,54 @@ int import_program() {
 	return 0;
 }
 
+void sdl_event() {
+	while(SDL_PollEvent(&event)) {
+		if(event.type == SDL_EVENT_QUIT) {
+			running = false;
+		} else if(event.type == SDL_EVENT_KEY_DOWN) {
+
+			SDL_Keycode key = event.key.key;
+			switch(key) {
+				case SDLK_1: key_pressed[0x1] = 1; break;
+				case SDLK_2: key_pressed[0x2] = 1; break;
+				case SDLK_3: key_pressed[0x3] = 1; break;
+				case SDLK_4: key_pressed[0xC] = 1; break;
+				case SDLK_Q: key_pressed[0x4] = 1; break;
+				case SDLK_W: key_pressed[0x5] = 1; break;
+				case SDLK_E: key_pressed[0x6] = 1; break;
+				case SDLK_R: key_pressed[0xD] = 1; break;
+				case SDLK_A: key_pressed[0x7] = 1; break;
+				case SDLK_S: key_pressed[0x8] = 1; break;
+				case SDLK_D: key_pressed[0x9] = 1; break;
+				case SDLK_F: key_pressed[0xE] = 1; break;
+				case SDLK_Z: key_pressed[0xA] = 1; break;
+				case SDLK_X: key_pressed[0x0] = 1; break;
+				case SDLK_C: key_pressed[0xB] = 1; break;
+				case SDLK_ESCAPE:  running = false;  break;
+			}
+		} else if(event.type == SDL_EVENT_KEY_UP) {
+
+			SDL_Keycode key = event.key.key;
+			switch(key) {
+				case SDLK_1: key_pressed[0x1] = 0; break;
+				case SDLK_2: key_pressed[0x2] = 0; break;
+				case SDLK_3: key_pressed[0x3] = 0; break;
+				case SDLK_4: key_pressed[0xC] = 0; break;
+				case SDLK_Q: key_pressed[0x4] = 0; break;
+				case SDLK_W: key_pressed[0x5] = 0; break;
+				case SDLK_E: key_pressed[0x6] = 0; break;
+				case SDLK_R: key_pressed[0xD] = 0; break;
+				case SDLK_A: key_pressed[0x7] = 0; break;
+				case SDLK_S: key_pressed[0x8] = 0; break;
+				case SDLK_D: key_pressed[0x9] = 0; break;
+				case SDLK_F: key_pressed[0xE] = 0; break;
+				case SDLK_Z: key_pressed[0xA] = 0; break;
+				case SDLK_X: key_pressed[0x0] = 0; break;
+				case SDLK_C: key_pressed[0xB] = 0; break;
+			}
+		}
+	}
+}
 
 void chip_8_cycle() {
 
@@ -135,7 +186,7 @@ void chip_8_cycle() {
 	switch(opcode & 0xF000) {
 		case 0x0000:
 			switch(opcode & 0x00FF) {
-				case 0x00E0: // CLS
+				case 0x00E0: // CLS ✔
 					std::memset(screen_buffer, 0, sizeof(screen_buffer));
 					break;
 				case 0x00EE: // RET
@@ -203,7 +254,7 @@ void chip_8_cycle() {
 					V[(opcode & 0x0F00) >> 8] >>= 1;
 					break;
 				case 0x0007: // SUBN Vx, Vy
-					V[0xF] = V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8];
+					V[0xF] = V[(opcode & 0x0F00) >> 4] > V[(opcode & 0x0F00) >> 8];
 					V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
 					break;
 				case 0x000E: // SHL Vx{, Vy}
@@ -229,30 +280,35 @@ void chip_8_cycle() {
 			PC += 2;
 			break;
 		case 0xD000: { // DRW Vx, Vy, nibble
+			V[0xF] = 0;
 			int sprite_x{V[(opcode & 0x0F00) >> 8]};
 			int sprite_y{V[(opcode & 0x00F0) >> 4]};
+			int changed_pixel{0};
 			for(int y = 0; y < (opcode & 0x000F); y++) {
 				for(int x = 0; x < 8; x++) {
 					int x_position{sprite_x + x};
 					int y_position{sprite_y + y};
-					bool pixel{static_cast<bool>(memory[I] & (int)pow(2, 7 - (x - 1)))};
+					bool pixel = (memory[I] & (0x80 >> x));
 					x_position = (x_position > 64 ? x_position - 64 : x_position < 0 ? x_position + 64 : x_position);
 					y_position = (y_position > 32 ? y_position - 32 : y_position < 0 ? y_position + 32 : y_position);
-					V[0xF] = (screen_buffer[x_position][y_position] == pixel && pixel == 1);
+					if(screen_buffer[x_position][y_position] == pixel && pixel == 1) changed_pixel = 1;
 					screen_buffer[x_position][y_position] ^= pixel;
 				}
 				I++;
 			}
+			V[0xF] = (changed_pixel);
 			PC += 2;
 			break;
-		}
+		}  
 		case 0xE000:
 			switch(opcode & 0x00FF) {
 				case 0x009E: // SKP Vx
-					if(V[(opcode & 0x0F00) >> 8] == key_pressed) PC += 2;
+					if(key_pressed[V[(opcode & 0x0F00) >> 8]]) PC += 4;
+					else PC += 2;
 					break;
 				case 0x00A1: // SKNP Vx
-					if(V[(opcode & 0x0F00) >> 8] != key_pressed) PC += 2;
+					if(!key_pressed[V[(opcode & 0x0F00) >> 8]]) PC += 4;
+					else PC += 2;
 					break;
 			}
 			break;
@@ -263,10 +319,14 @@ void chip_8_cycle() {
 					PC += 2;
 					break;
 				case 0x000A: // LD Vx, K
-					if(key_pressed != 0xF0) {
-						V[(opcode & 0x0F00) >> 8] = key_pressed;
-						PC += 2;
+					while(true) {
+						auto it = std::find(std::begin(key_pressed), std::end(key_pressed), true);
+						if(it != std::end(key_pressed)) {
+							V[(opcode & 0x0F00) >> 8] = std::distance(std::begin(key_pressed), it);
+							break;
+						}
 					}
+					PC += 2;
 					break;
 				case 0x0015: // LD DT, Vx
 					DT = V[(opcode & 0x0F00) >> 8];
@@ -309,7 +369,6 @@ void chip_8_cycle() {
 	}
 }
 
-
 int main() {
 	std::srand(std::time(nullptr));
 	if(import_program() == -1) return -1;
@@ -318,37 +377,8 @@ int main() {
 	SDL_Window* window = SDL_CreateWindow("chip-8", 640, 320, SDL_WINDOW_RESIZABLE);
 	SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
 
-	bool running{true};
-	SDL_Event event;
 	while(running) {
-		while(SDL_PollEvent(&event)) {
-			if(event.type == SDL_EVENT_QUIT) {
-				running = false;
-			} else if(SDL_EVENT_KEY_DOWN) {
-
-				SDL_Keycode key = event.key.key;
-				switch(key) {
-					case SDLK_1: key_pressed = {0x1}; break;
-					case SDLK_2: key_pressed = {0x2}; break;
-					case SDLK_3: key_pressed = {0x3}; break;
-					case SDLK_4: key_pressed = {0xC}; break;
-					case SDLK_Q: key_pressed = {0x4}; break;
-					case SDLK_W: key_pressed = {0x5}; break;
-					case SDLK_E: key_pressed = {0x6}; break;
-					case SDLK_R: key_pressed = {0xD}; break;
-					case SDLK_A: key_pressed = {0x7}; break;
-					case SDLK_S: key_pressed = {0x8}; break;
-					case SDLK_D: key_pressed = {0x9}; break;
-					case SDLK_F: key_pressed = {0xE}; break;
-					case SDLK_Z: key_pressed = {0xA}; break;
-					case SDLK_X: key_pressed = {0x0}; break;
-					case SDLK_C: key_pressed = {0xB}; break;
-					case SDLK_V: key_pressed = {0xF}; break;
-					case SDLK_ESCAPE:  running = false;  break;
-					default: key_pressed = 0xF0; break;
-				}
-			}
-		}
+		sdl_event();
 
 		chip_8_cycle();
 
