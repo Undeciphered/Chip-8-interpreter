@@ -220,7 +220,7 @@ void chip_8_cycle() {
 			V[(opcode & 0x0F00) >> 8] = (std::rand() % 256) & (opcode & 0x00FF);
 			PC += 2;
 			break;
-		case 0xD000: // DRW Vx, Vy, nibble
+		case 0xD000: { // DRW Vx, Vy, nibble
 			int sprite_x{V[(opcode & 0x0F00) >> 8]};
 			int sprite_y{V[(opcode & 0x00F0) >> 4]};
 			for(int y = 0; y < 5; y++) {
@@ -237,6 +237,7 @@ void chip_8_cycle() {
 			}
 			PC++;
 			break;
+		}
 		case 0xE000:
 			switch(opcode & 0x00FF) {
 				case 0x009E: // SKP Vx
@@ -271,22 +272,29 @@ void chip_8_cycle() {
 					I = V[(opcode & 0x0F00) >> 8] * 5;
 					PC += 2;
 					break;
-				case 0x0033: // LD B, Vx
-
-
-
+				case 0x0033: { // LD B, Vx
+					uint8_t Vx = V[(opcode & 0x0F00) >> 8];
+					memory[I] = Vx / 100;
+					memory[I + 1] = (Vx / 10) % 10;
+					memory[I + 2] = Vx % 10;
+					PC += 2;
+					break;
+				}
+				case 0x0055: // LD [I], Vx
+					for(int V_register = 0; V_register <= ((opcode & 0x0F00) >> 8); V_register++) {
+						memory[I + V_register] = V[V_register];
+					}
+					PC += 2;
+					break;
+				case 0x0065: // LD Vx, [I]
+					for(int V_register = 0; V_register <= ((opcode & 0x0F00) >> 8); V_register++) {
+						V[V_register] = memory[I + V_register];
+					}
+					PC += 2;
+					break;
 			}
-		
-
-
-
-
-			
-
-		
+			break;
 	}
-
-
 }
 
 
@@ -337,7 +345,7 @@ int main() {
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 		for(int y = 0; y < 32; y++) {
 			for(int x = 0; x < 64; x++) {
-				if(screen_buffer[y][x]) {
+				if(screen_buffer[x][y]) {
 
 					SDL_FRect pixel{x * 10.f, y * 10.f, 10.f, 10.f};
 					SDL_RenderFillRect(renderer, &pixel);
@@ -345,7 +353,7 @@ int main() {
 			}
 		}
 		SDL_RenderPresent(renderer);
-		SDL_Delay(16.667);
+		SDL_Delay(17);
 	}
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
