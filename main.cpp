@@ -118,7 +118,7 @@ void load_font() {
 int import_program() {
 
 	load_font();
-	std::ifstream program("C:\\Chip-8 pragrams\\6-keypad.ch8", std::ios::binary);
+	std::ifstream program("C:\\Chip-8 pragrams\\test_opcode.ch8", std::ios::binary);
 	if(!program.is_open()) {
 		std::cerr << "could not open file!";
 		return -1;
@@ -153,8 +153,7 @@ void chip_8_cycle() {
 			PC = opcode & 0x0FFF;
 			break;
 		case 0x2000: // CALL addr
-			PC += 2;
-			stack.push(PC);
+			stack.push(PC + 2);
 			PC = opcode & 0x0FFF;
 			break;
 		case 0x3000: // SE Vx, byte
@@ -201,7 +200,7 @@ void chip_8_cycle() {
 					break;
 				case 0x0006: // SHR Vx {, Vy}
 					V[0xF] = (V[(opcode & 0x0F00) >> 8] & 0x01);
-					1 >> V[(opcode & 0x0F00) >> 8];
+					V[(opcode & 0x0F00) >> 8] >>= 1;
 					break;
 				case 0x0007: // SUBN Vx, Vy
 					V[0xF] = V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8];
@@ -209,10 +208,14 @@ void chip_8_cycle() {
 					break;
 				case 0x000E: // SHL Vx{, Vy}
 					V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x80;
-					1 << V[(opcode & 0x0F00) >> 8];
+					V[(opcode & 0x0F00) >> 8] <<= 1;
 					break;
 			}
 			PC += 2;
+			break;
+		case 0x9000: // SNE Vx, Vy
+			if(V[(opcode & 0x0F00) >> 8] != V[(opcode & 0x00F0) >> 4]) PC += 4;
+			else PC += 2;
 			break;
 		case 0xA000: // LD I, addr
 			I = (opcode & 0x0FFF);
