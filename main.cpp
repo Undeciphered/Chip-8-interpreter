@@ -118,7 +118,7 @@ void load_font() {
 int import_program() {
 
 	load_font();
-	std::ifstream program("C:\\Chip-8 pragrams\\2-ibm-logo.ch8", std::ios::binary);
+	std::ifstream program("C:\\Chip-8 pragrams\\6-keypad.ch8", std::ios::binary);
 	if(!program.is_open()) {
 		std::cerr << "could not open file!";
 		return -1;
@@ -139,8 +139,10 @@ void chip_8_cycle() {
 					std::memset(screen_buffer, 0, sizeof(screen_buffer));
 					break;
 				case 0x00EE: // RET
-					PC = stack.top();
-					stack.pop();
+					if(!stack.empty()) {
+						PC = stack.top();
+						stack.pop();
+					}
 					break;
 				default: // SYS addr (ignored)
 					break;
@@ -151,18 +153,21 @@ void chip_8_cycle() {
 			PC = opcode & 0x0FFF;
 			break;
 		case 0x2000: // CALL addr
+			PC += 2;
 			stack.push(PC);
 			PC = opcode & 0x0FFF;
-			PC += 2;
 			break;
 		case 0x3000: // SE Vx, byte
 			if(V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) PC += 4;
+			else PC += 2;
 			break;
 		case 0x4000: // SNE Vx, byte
 			if(V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF)) PC += 4;
+			else PC += 2;
 			break;
 		case 0x5000: // SE Vx, Vy
 			if(V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4]) PC += 4;
+			else PC += 2;
 			break;
 		case 0x6000: // LD Vx, byte
 			V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF);
@@ -196,7 +201,7 @@ void chip_8_cycle() {
 					break;
 				case 0x0006: // SHR Vx {, Vy}
 					V[0xF] = (V[(opcode & 0x0F00) >> 8] & 0x01);
-					V[(opcode & 0x0F00) >> 8] /= 2;
+					1 >> V[(opcode & 0x0F00) >> 8];
 					break;
 				case 0x0007: // SUBN Vx, Vy
 					V[0xF] = V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8];
@@ -204,7 +209,7 @@ void chip_8_cycle() {
 					break;
 				case 0x000E: // SHL Vx{, Vy}
 					V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x80;
-					V[(opcode & 0x0F00) >> 8] *= 2;
+					1 << V[(opcode & 0x0F00) >> 8];
 					break;
 			}
 			PC += 2;
@@ -227,7 +232,7 @@ void chip_8_cycle() {
 				for(int x = 0; x < 8; x++) {
 					int x_position{sprite_x + x};
 					int y_position{sprite_y + y};
-					bool pixel{static_cast<bool>(memory[I] & (int)pow(2, 6 - (x - 1)))};
+					bool pixel{static_cast<bool>(memory[I] & (int)pow(2, 7 - (x - 1)))};
 					x_position = (x_position > 64 ? x_position - 64 : x_position < 0 ? x_position + 64 : x_position);
 					y_position = (y_position > 32 ? y_position - 32 : y_position < 0 ? y_position + 32 : y_position);
 					V[0xF] = (screen_buffer[x_position][y_position] == pixel && pixel == 1);
